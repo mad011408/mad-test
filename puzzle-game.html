@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sliding Puzzle Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .game-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            font-size: 1.2em;
+            color: #666;
+        }
+
+        .moves, .timer {
+            background: #f0f0f0;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: bold;
+        }
+
+        .puzzle-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 5px;
+            width: 400px;
+            height: 400px;
+            margin: 0 auto 20px;
+            background: #ddd;
+            border-radius: 10px;
+            padding: 10px;
+        }
+
+        .puzzle-piece {
+            background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            user-select: none;
+        }
+
+        .puzzle-piece:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .puzzle-piece.empty {
+            background: transparent;
+            box-shadow: none;
+            cursor: default;
+        }
+
+        .puzzle-piece.empty:hover {
+            transform: none;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        button {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .win-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(45deg, #4facfe, #00f2fe);
+            color: white;
+            padding: 30px;
+            border-radius: 20px;
+            font-size: 1.5em;
+            font-weight: bold;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            display: none;
+            animation: celebrate 0.6s ease-in-out;
+        }
+
+        @keyframes celebrate {
+            0% { transform: translate(-50%, -50%) scale(0); }
+            50% { transform: translate(-50%, -50%) scale(1.1); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+
+        .difficulty-selector {
+            margin-bottom: 20px;
+        }
+
+        .difficulty-selector select {
+            padding: 10px 15px;
+            border-radius: 10px;
+            border: 2px solid #ddd;
+            font-size: 1em;
+            background: white;
+            cursor: pointer;
+        }
+
+        @media (max-width: 480px) {
+            .puzzle-container {
+                width: 300px;
+                height: 300px;
+            }
+            
+            .puzzle-piece {
+                font-size: 1.5em;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>🧩 Sliding Puzzle</h1>
+        
+        <div class="difficulty-selector">
+            <select id="difficulty">
+                <option value="3">Easy (3x3)</option>
+                <option value="4" selected>Medium (4x4)</option>
+                <option value="5">Hard (5x5)</option>
+            </select>
+        </div>
+
+        <div class="game-info">
+            <div class="moves">Moves: <span id="moveCount">0</span></div>
+            <div class="timer">Time: <span id="timer">00:00</span></div>
+        </div>
+
+        <div class="puzzle-container" id="puzzleContainer"></div>
+
+        <div class="controls">
+            <button onclick="shufflePuzzle()">🔀 Shuffle</button>
+            <button onclick="resetGame()">🔄 Reset</button>
+        </div>
+    </div>
+
+    <div class="win-message" id="winMessage">
+        🎉 Congratulations! 🎉<br>
+        You solved the puzzle!
+    </div>
+
+    <script>
+        let puzzleSize = 4;
+        let puzzle = [];
+        let emptyIndex = 0;
+        let moveCount = 0;
+        let startTime = null;
+        let timerInterval = null;
+
+        function initializePuzzle() {
+            puzzle = [];
+            const totalTiles = puzzleSize * puzzleSize;
+            
+            // Create ordered puzzle
+            for (let i = 1; i < totalTiles; i++) {
+                puzzle.push(i);
+            }
+            puzzle.push(0); // Empty space
+            emptyIndex = totalTiles - 1;
+            
+            renderPuzzle();
+            resetGame();
+        }
+
+        function renderPuzzle() {
+            const container = document.getElementById('puzzleContainer');
+            container.innerHTML = '';
+            container.style.gridTemplateColumns = `repeat(${puzzleSize}, 1fr)`;
+            container.style.gridTemplateRows = `repeat(${puzzleSize}, 1fr)`;
+            
+            const pieceSize = Math.min(400 / puzzleSize, 100);
+            container.style.width = `${pieceSize * puzzleSize}px`;
+            container.style.height = `${pieceSize * puzzleSize}px`;
+
+            puzzle.forEach((value, index) => {
+                const piece = document.createElement('div');
+                piece.className = value === 0 ? 'puzzle-piece empty' : 'puzzle-piece';
+                piece.textContent = value === 0 ? '' : value;
+                piece.onclick = () => movePiece(index);
+                container.appendChild(piece);
+            });
+        }
+
+        function movePiece(index) {
+            if (isAdjacent(index, emptyIndex)) {
+                // Swap pieces
+                [puzzle[index], puzzle[emptyIndex]] = [puzzle[emptyIndex], puzzle[index]];
+                emptyIndex = index;
+                moveCount++;
+                document.getElementById('moveCount').textContent = moveCount;
+                
+                renderPuzzle();
+                checkWin();
+            }
+        }
+
+        function isAdjacent(index1, index2) {
+            const row1 = Math.floor(index1 / puzzleSize);
+            const col1 = index1 % puzzleSize;
+            const row2 = Math.floor(index2 / puzzleSize);
+            const col2 = index2 % puzzleSize;
+            
+            return (Math.abs(row1 - row2) === 1 && col1 === col2) ||
+                   (Math.abs(col1 - col2) === 1 && row1 === row2);
+        }
+
+        function shufflePuzzle() {
+            // Fisher-Yates shuffle with solvability check
+            for (let i = puzzle.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [puzzle[i], puzzle[j]] = [puzzle[j], puzzle[i]];
+            }
+            
+            // Find new empty position
+            emptyIndex = puzzle.indexOf(0);
+            
+            // Ensure puzzle is solvable
+            if (!isSolvable()) {
+                // If not solvable, swap first two non-empty pieces
+                for (let i = 0; i < puzzle.length; i++) {
+                    if (puzzle[i] !== 0) {
+                        for (let j = i + 1; j < puzzle.length; j++) {
+                            if (puzzle[j] !== 0) {
+                                [puzzle[i], puzzle[j]] = [puzzle[j], puzzle[i]];
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+            
+            renderPuzzle();
+            resetGame();
+        }
+
+        function isSolvable() {
+            let inversions = 0;
+            const flatPuzzle = puzzle.filter(x => x !== 0);
+            
+            for (let i = 0; i < flatPuzzle.length; i++) {
+                for (let j = i + 1; j < flatPuzzle.length; j++) {
+                    if (flatPuzzle[i] > flatPuzzle[j]) {
+                        inversions++;
+                    }
+                }
+            }
+            
+            if (puzzleSize % 2 === 1) {
+                return inversions % 2 === 0;
+            } else {
+                const emptyRow = Math.floor(emptyIndex / puzzleSize);
+                return (inversions + emptyRow) % 2 === 1;
+            }
+        }
+
+        function checkWin() {
+            for (let i = 0; i < puzzle.length - 1; i++) {
+                if (puzzle[i] !== i + 1) {
+                    return;
+                }
+            }
+            
+            // Win condition met
+            clearInterval(timerInterval);
+            document.getElementById('winMessage').style.display = 'block';
+            setTimeout(() => {
+                document.getElementById('winMessage').style.display = 'none';
+            }, 3000);
+        }
+
+        function resetGame() {
+            moveCount = 0;
+            document.getElementById('moveCount').textContent = moveCount;
+            startTime = Date.now();
+            
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+
+        function updateTimer() {
+            if (startTime) {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                document.getElementById('timer').textContent = 
+                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+        }
+
+        function changeDifficulty() {
+            puzzleSize = parseInt(document.getElementById('difficulty').value);
+            initializePuzzle();
+        }
+
+        // Event listeners
+        document.getElementById('difficulty').addEventListener('change', changeDifficulty);
+
+        // Initialize game
+        initializePuzzle();
+    </script>
+</body>
+</html>
